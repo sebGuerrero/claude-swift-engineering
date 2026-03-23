@@ -192,6 +192,27 @@ await store.receive(\.todos[id: todoID].toggleCompleted)
 await store.receive(\.path[id: screenID].screenA.didSave)
 ```
 
+### Prefer KeyPath Receive/Send for Nested Path Actions
+
+When testing nested navigation reducers, prefer keypath-based `send`/`receive` over manually constructing deeply nested enum actions.
+
+Benefits:
+
+- Fewer mismatches with generated action case paths.
+- Better compiler guidance and less boilerplate.
+- Strong alignment with established TCA test patterns.
+
+#### Preferred
+```swift
+await store.send(\.path[id: 0].child.view, .didTapRow(row))
+await store.receive(\.path[id: 0].child.delegate, .didSelect(row))
+```
+
+#### Less Preferred
+```swift
+await store.send(.path(.element(id: 0, action: .child(.view(.didTapRow(row))))))
+```
+
 ### Partial Matching
 
 ```swift

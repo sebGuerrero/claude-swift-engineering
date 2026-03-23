@@ -376,3 +376,46 @@ func testDarkModeToggle() async {
     await store.finish()
 }
 ```
+
+### Path-Based Navigation Tests (`StackState`) — Project Convention
+
+Use the same conventions as robust path-based tests:
+
+- Treat `state.path.append(...)` as a mutation call; do not rely on a returned ID.
+- Prefer index-based keypath actions in `TestStore` assertions:
+  - `await store.send(\.path[id: 0].feature.view, .event)`
+  - `await store.receive(\.path[id: 0].feature.delegate, .event)`
+- For state updates, use case-scoped path access:
+  - `state.path[id: 0, case: \.feature]?.property = value`
+- In `store.receive` expectation closures for path growth, prefer deterministic index assignment over `append` to avoid identity drift:
+  - `state.path[id: 1] = .next(.init())`
+- For root path assertions, prefer deterministic checks (`id: 0`) when setup is fully controlled by the test.
+
+#### Correct Pattern
+```swift
+var state = FeatureReducer.State()
+state.path.append(.child(.init()))
+state.path[id: 0, case: \.child]?.value = 42
+
+let store = makeStore(initialState: state)
+await store.send(\.path[id: 0].child.view, .didTap)
+await store.receive(\.path[id: 0].child.delegate, .finished) {
+  $0.path[id: 1] = .next(.init())
+}
+```
+
+#### Avoid
+```swift
+let pathId = state.path.append(.child(.init())) // avoid assuming return ID
+await store.send(.path(.element(id: pathId, action: ...))) // avoid when keypath route is available
+
+// avoid in expectation closures when asserting path mutations
+await store.receive(\.path[id: 0].child.delegate, .finished) {
+  $0.path.append(.next(.init()))
+}
+
+// prefer deterministic index assignment in expectation closures
+await store.receive(\.path[id: 0].child.delegate, .finished) {
+  $0.path[id: 1] = .next(.init())
+}
+```
